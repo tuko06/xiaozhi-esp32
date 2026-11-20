@@ -219,7 +219,7 @@ private:
             if (!imu_ready_) {
                 i2c_master_bus_rm_device(imu_);
                 imu_ = nullptr;
-                imu_cfg.device_address = 0x69;
+                imu_cfg.device_address = (ROBOT_MPU6050_ADDRESS == 0x68) ? 0x69 : 0x68;
                 if (i2c_master_bus_add_device(i2c_bus_, &imu_cfg, &imu_) == ESP_OK) {
                     imu_ready_ = i2c_master_transmit(imu_, wake, sizeof(wake), 100) == ESP_OK;
                 }
@@ -256,7 +256,7 @@ private:
                           (1ULL << ROBOT_BIN1) | (1ULL << ROBOT_BIN2) | (1ULL << ROBOT_STBY);
         io.mode = GPIO_MODE_OUTPUT;
         ESP_ERROR_CHECK(gpio_config(&io));
-        gpio_set_level(ROBOT_STBY, 1);
+        gpio_set_level(ROBOT_STBY, 0);
 
         ledc_timer_config_t motor_timer = {};
         motor_timer.speed_mode = LEDC_LOW_SPEED_MODE;
@@ -317,7 +317,7 @@ private:
         value = std::clamp(value, -100, 100);
         gpio_set_level(in1, value >= 0);
         gpio_set_level(in2, value < 0);
-        const uint32_t duty = static_cast<uint32_t>(abs(value)) * 1023 / 100;
+        const uint32_t duty = static_cast<uint32_t>(std::abs(value)) * 1023 / 100;
         ledc_set_duty(LEDC_LOW_SPEED_MODE, pwm, duty);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, pwm);
     }
