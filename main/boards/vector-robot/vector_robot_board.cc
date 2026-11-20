@@ -20,6 +20,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <algorithm>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -204,6 +206,14 @@ private:
         if (i2c_master_bus_add_device(i2c_bus_, &imu_cfg, &imu_) == ESP_OK) {
             uint8_t wake[] = {0x6B, 0x00};
             imu_ready_ = i2c_master_transmit(imu_, wake, sizeof(wake), 100) == ESP_OK;
+            if (!imu_ready_) {
+                i2c_master_bus_rm_device(imu_);
+                imu_ = nullptr;
+                imu_cfg.device_address = 0x69;
+                if (i2c_master_bus_add_device(i2c_bus_, &imu_cfg, &imu_) == ESP_OK) {
+                    imu_ready_ = i2c_master_transmit(imu_, wake, sizeof(wake), 100) == ESP_OK;
+                }
+            }
         }
 
         esp_lcd_panel_io_i2c_config_t io = {};
@@ -399,11 +409,9 @@ private:
                 else return std::unexpected("servo: head, left_arm veya right_arm olmalı");
                 return std::string(name) + " servo " + std::to_string(angle) + " derece";
             });
-        mcp.AddTool("camera.capture", "ESP32-CAM yardımcı kartından JPEG fotoğraf çek.", PropertyList({}),
-            [this](const PropertyList&) -> ToolResult {
-                return camera_ && camera_->Capture() ? std::string("Fotoğraf çekildi") :
-                    std::unexpected("Kamera çekimi başarısız; ESP32-CAM bağlantısını ve yardımcı yazılımını kontrol et");
-            });
+        // The core XiaoZhi MCP server automatically exposes self.camera.take_photo
+        // when GetCamera() returns a non-null Camera implementation. That tool calls
+        // Capture() and Explain() using the server-provided vision endpoint.
     }
 };
 
