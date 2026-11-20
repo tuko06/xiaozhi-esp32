@@ -17,6 +17,7 @@
 #include <esp_lcd_panel_vendor.h>
 #include <esp_lcd_panel_sh1106.h>
 #include <esp_log.h>
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <algorithm>
@@ -51,6 +52,8 @@ public:
         ready_ = true;
     }
 
+    ~VectorCamera() override { if (frame_ != nullptr) heap_caps_free(frame_); }
+
     void SetExplainUrl(const std::string& url, const std::string& token) override {
         explain_url_ = url;
         explain_token_ = token;
@@ -79,26 +82,32 @@ public:
             return false;
         }
 
-        frame_.assign(length, 0);
+        if (frame_ != nullptr) { heap_caps_free(frame_); frame_ = nullptr; frame_size_ = 0; }
+        frame_ = static_cast<uint8_t*>(heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (frame_ == nullptr) {
+            ESP_LOGE(TAG, "Unable to allocate PSRAM for JPEG frame (%lu bytes)", static_cast<unsigned long>(length));
+            return false;
+        }
         size_t offset = 0;
         while (offset < length) {
-            int n = uart_read_bytes(ROBOT_CAMERA_UART, frame_.data() + offset,
+            int n = uart_read_bytes(ROBOT_CAMERA_UART, frame_ + offset,
                                     length - offset, pdMS_TO_TICKS(3000));
             if (n <= 0) {
-                frame_.clear();
+                heap_caps_free(frame_); frame_ = nullptr; frame_size_ = 0;
                 ESP_LOGE(TAG, "Camera JPEG transfer incomplete");
                 return false;
             }
             offset += static_cast<size_t>(n);
         }
-        return frame_.size() >= 4 && frame_[0] == 0xFF && frame_[1] == 0xD8;
+        frame_size_ = length;
+        return frame_size_ >= 4 && frame_[0] == 0xFF && frame_[1] == 0xD8;
     }
 
     bool SetHMirror(bool enabled) override { return SendSetting("HMIRROR", enabled); }
     bool SetVFlip(bool enabled) override { return SendSetting("VFLIP", enabled); }
 
     std::expected<std::string, std::string> Explain(const std::string& question) override {
-        if (frame_.empty()) return std::unexpected("Önce camera.capture çağrılmalı");
+        if (frame_ == nullptr || frame_size_ == 0) return std::unexpected("Önce kamera görüntüsü alınmalı");
         if (explain_url_.empty()) return std::unexpected("Görüntü açıklama servisi URL'si ayarlanmamış");
         auto network = Board::GetInstance().GetNetwork();
         if (network == nullptr) return std::unexpected("Ağ bağlantısı kullanılamıyor");
@@ -120,7 +129,7 @@ public:
                         question + "\r\n";
         std::string h = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"vector.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
         if (!write(q) || !write(h) || !static_cast<bool>(http->Write(
-                reinterpret_cast<const char*>(frame_.data()), frame_.size())) ||
+                reinterpret_cast<const char*>(frame_), frame_size_)) ||
             !write("\r\n--" + boundary + "--\r\n") || !static_cast<bool>(http->Write("", 0))) {
             http->Close();
             return std::unexpected("Kamera görüntüsü yüklenemedi");
@@ -140,7 +149,8 @@ private:
     bool ready_ = false;
     std::string explain_url_;
     std::string explain_token_;
-    std::vector<uint8_t> frame_;
+    uint8_t* frame_ = nullptr;
+    size_t frame_size_ = 0;
 
     bool SendSetting(const char* key, bool enabled) {
         if (!ready_) return false;
@@ -364,8 +374,15 @@ private:
         auto& mcp = McpServer::GetInstance();
         mcp.AddTool("robot.forward", "Robotu ileri sür.", PropertyList({}),
             [this](const PropertyList&) -> ToolResult { Drive(speed_, speed_); return std::string("İleri hareket"); });
-        mcp.AddTool("robot.backward", "Robotu geri sür.", PropertyList({}),
-            [this](const PropertyList&) -> ToolResult { Drive(-speed_, -speed_); return std::string("Geri hareket"); });
+        mcp.AddTool("robot.backward", "Robotu geri sür; arka IR sensörü engel algılarsa hareket etme.", PropertyList({}),
+            [this](const PropertyList&) -> ToolResult {
+                if (gpio_get_level(ROBOT_REAR_IR_GPIO) == ROBOT_IR_ACTIVE_LOW) {
+                    StopMotors();
+                    return std::unexpected("Arka tarafta engel algılandı; geri hareket iptal edildi");
+                }
+                Drive(-speed_, -speed_);
+                return std::string("Geri hareket");
+            });
         mcp.AddTool("robot.left", "Robotu sola döndür.", PropertyList({}),
             [this](const PropertyList&) -> ToolResult { Drive(-speed_, speed_); return std::string("Sola dönüş"); });
         mcp.AddTool("robot.right", "Robotu sağa döndür.", PropertyList({}),
@@ -386,7 +403,7 @@ private:
                     ",\"accel_raw\":[" + std::to_string(ax) + "," + std::to_string(ay) + "," + std::to_string(az) +
                     "],\"gyro_raw\":[" + std::to_string(gx) + "," + std::to_string(gy) + "," + std::to_string(gz) + "]}";
             });
-        mcp.AddTool("sensor.get_distance", "Arka IR engel sensörünün tetik durumunu oku.", PropertyList({}),
+        mcp.AddTool("sensor.get_distance", "Arka IR yaklaşım sensörünün engel algılama durumunu oku (santimetre ölçmez).", PropertyList({}),
             [this](const PropertyList&) -> ToolResult {
                 bool detected = gpio_get_level(ROBOT_REAR_IR_GPIO) == ROBOT_IR_ACTIVE_LOW;
                 return detected ? std::string("Arka sensörde engel algılandı") : std::string("Arka sensörde engel algılanmadı");
