@@ -65,6 +65,7 @@ class VectorRobotBoardConfigTests(unittest.TestCase):
         ):
             self.assertIn(tool, source)
         self.assertIn("Camera* GetCamera() override { return camera_.get(); }", source)
+        self.assertIn("GpioLed led(BUILTIN_LED_GPIO, 0, LEDC_TIMER_2, LEDC_CHANNEL_5)", source)
         self.assertIn("gpio_set_level(ROBOT_STBY, 0);", source)
         self.assertIn("#define ROBOT_IR_ACTIVE_LOW 0", (BOARD / "config.h").read_text(encoding="utf-8"))
         self.assertIn('"CAPTURE\\n"', source)
