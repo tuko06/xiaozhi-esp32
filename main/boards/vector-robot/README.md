@@ -25,7 +25,7 @@ ESP32-CAM yardımcı kartı `camera-companion/` klasöründedir. PlatformIO ile 
 
 Ana kart UART1 kullanır: TX GPIO2, RX GPIO3, 115200 8N1. ESP32-CAM yardımcı kartı `camera-companion/` altındaki firmware'i çalıştırmalıdır. Ana kart `CAPTURE\n` gönderir; yardımcı kart 8 baytlık `VCAM` + big-endian JPEG uzunluğu başlığı ve ardından JPEG verisini gönderir. Hata durumunda `VERR` başlığı ve sıfır uzunluk döner. Ayar komutları `HMIRROR 0|1\n` ve `VFLIP 0|1\n` şeklindedir.
 
-GPIO3, ESP32-S3 strapping pinidir. Bu hatta harici devrenin reset/boot sırasında hattı zorlamaması gerekir; kamera UART kablolaması ilk açılışta bağlantı sorununa neden olursa kartın boot davranışı ayrıca ölçülmelidir.
+GPIO3, ESP32-S3 strapping pinidir. Bu hatta harici devrenin reset/boot sırasında hattı zorlamaması gerekir; kamera UART kablolaması ilk açılışta bağlantı sorununa neden olursa kartın boot davranışı ayrıca ölçülmelidir. Servo sinyalleri için kullanılan GPIO19/GPIO20 aynı zamanda ESP32-S3 native USB D-/D+ pinleridir; servolar bağlıyken native USB/USB-JTAG kullanımı etkilenebilir. Programlama ve log için kartın USB-UART köprüsünü kullanın veya USB pinleriyle çakışmayan servo pinlerine geçin.
 
 ## Notlar
 
