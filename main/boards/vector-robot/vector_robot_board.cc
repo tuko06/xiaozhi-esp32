@@ -4,7 +4,7 @@
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
-#include "led/single_led.h"
+#include "led/gpio_led.h"
 #include "assets/lang_config.h"
 #include "camera.h"
 #include "system_info.h"
@@ -172,7 +172,7 @@ public:
     }
 
     Led* GetLed() override {
-        static SingleLed led(BUILTIN_LED_GPIO);
+        static GpioLed led(BUILTIN_LED_GPIO, 0, LEDC_TIMER_2, LEDC_CHANNEL_5);
         return &led;
     }
 
