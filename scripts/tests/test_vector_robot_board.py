@@ -65,6 +65,7 @@ class VectorRobotBoardConfigTests(unittest.TestCase):
         ):
             self.assertIn(tool, source)
         self.assertIn("Camera* GetCamera() override { return camera_.get(); }", source)
+        self.assertIn("gpio_set_level(ROBOT_STBY, 0);", source)
         self.assertIn('"CAPTURE\\n"', source)
         self.assertIn("'V','C','A','M'", companion)
 
