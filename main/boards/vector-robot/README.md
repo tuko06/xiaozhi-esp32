@@ -19,6 +19,8 @@ Kart seçimi `main/Kconfig.projbuild` ve `main/CMakeLists.txt` üzerinden yapıl
 - `sensor.get_distance`, `sensor.get_imu`
 - `self.camera.take_photo` (XiaoZhi çekirdek MCP aracı; `GetCamera()` üzerinden gerçek UART kamerayı kullanır)
 
+ESP32-CAM yardımcı kartı `camera-companion/` klasöründedir. PlatformIO ile derleme: `pio run -d camera-companion`; yükleme: `pio run -d camera-companion -t upload`.
+
 ## Kamera UART protokolü
 
 Ana kart UART1 kullanır: TX GPIO2, RX GPIO3, 115200 8N1. ESP32-CAM yardımcı kartı `camera-companion/` altındaki firmware'i çalıştırmalıdır. Ana kart `CAPTURE\n` gönderir; yardımcı kart 8 baytlık `VCAM` + big-endian JPEG uzunluğu başlığı ve ardından JPEG verisini gönderir. Hata durumunda `VERR` başlığı ve sıfır uzunluk döner. Ayar komutları `HMIRROR 0|1\n` ve `VFLIP 0|1\n` şeklindedir.
