@@ -198,6 +198,8 @@ private:
     bool imu_ready_ = false;
     bool motors_ready_ = false;
     bool servos_ready_ = false;
+    int left_direction_ = 0;
+    int right_direction_ = 0;
 
     void InitializeI2cAndDisplay() {
         i2c_master_bus_config_t bus = {};
@@ -324,6 +326,8 @@ private:
 
     void Drive(int left, int right) {
         if (!motors_ready_) return;
+        left_direction_ = (left > 0) - (left < 0);
+        right_direction_ = (right > 0) - (right < 0);
         gpio_set_level(ROBOT_STBY, 1);
         SetMotor(LEDC_CHANNEL_0, ROBOT_AIN1, ROBOT_AIN2, left);
         SetMotor(LEDC_CHANNEL_1, ROBOT_BIN1, ROBOT_BIN2, right);
@@ -336,6 +340,8 @@ private:
         ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, 0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
         gpio_set_level(ROBOT_STBY, 0);
+        left_direction_ = 0;
+        right_direction_ = 0;
     }
 
     bool ReadImu(int16_t& ax, int16_t& ay, int16_t& az, int16_t& gx, int16_t& gy, int16_t& gz) {
@@ -391,7 +397,12 @@ private:
             [this](const PropertyList&) -> ToolResult { StopMotors(); return std::string("Motorlar durduruldu"); });
         mcp.AddTool("robot.set_speed", "Motor hızını yüzde olarak ayarla.", PropertyList({
             Property("speed", kPropertyTypeInteger, 55, 0, 100)}),
-            [this](const PropertyList& p) -> ToolResult { speed_ = p["speed"].value<int>(); return std::string("Hız: ") + std::to_string(speed_); });
+            [this](const PropertyList& p) -> ToolResult {
+                speed_ = p["speed"].value<int>();
+                if (left_direction_ != 0 || right_direction_ != 0)
+                    Drive(left_direction_ * speed_, right_direction_ * speed_);
+                return std::string("Hız: ") + std::to_string(speed_);
+            });
         mcp.AddTool("robot.get_status", "Robot motor, sensör ve IMU durumunu döndür.", PropertyList({}),
             [this](const PropertyList&) -> ToolResult {
                 int ir = gpio_get_level(ROBOT_REAR_IR_GPIO);
