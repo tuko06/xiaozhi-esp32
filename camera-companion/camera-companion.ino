@@ -29,7 +29,7 @@ static void sendFrame() {
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb || fb->format != PIXFORMAT_JPEG || fb->len == 0 || fb->len > 512 * 1024) {
     if (fb) esp_camera_fb_return(fb);
-    const uint8_t fail[] = {'V','E','R','R'};
+    const uint8_t fail[8] = {'V','E','R','R',0,0,0,0};
     Serial2.write(fail, sizeof(fail));
     return;
   }
