@@ -42,7 +42,7 @@
 
 // Sensors and companion camera UART.
 #define ROBOT_REAR_IR_GPIO GPIO_NUM_21
-#define ROBOT_IR_ACTIVE_LOW 1
+#define ROBOT_IR_ACTIVE_LOW 0
 #define ROBOT_I2C_SDA GPIO_NUM_41
 #define ROBOT_I2C_SCL GPIO_NUM_42
 #define ROBOT_MPU6050_ADDRESS 0x68
