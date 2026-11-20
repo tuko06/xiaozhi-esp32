@@ -399,8 +399,11 @@ private:
             Property("speed", kPropertyTypeInteger, 55, 0, 100)}),
             [this](const PropertyList& p) -> ToolResult {
                 speed_ = p["speed"].value<int>();
-                if (left_direction_ != 0 || right_direction_ != 0)
+                if (speed_ == 0) {
+                    StopMotors();
+                } else if (left_direction_ != 0 || right_direction_ != 0) {
                     Drive(left_direction_ * speed_, right_direction_ * speed_);
+                }
                 return std::string("Hız: ") + std::to_string(speed_);
             });
         mcp.AddTool("robot.get_status", "Robot motor, sensör ve IMU durumunu döndür.", PropertyList({}),
