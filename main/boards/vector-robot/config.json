@@ -1,0 +1,15 @@
+{
+  "type": "vector-robot",
+  "target": "esp32s3",
+  "manufacturer": "tuko06",
+  "builds": [
+    {
+      "name": "vector-robot",
+      "sdkconfig_append": [
+        "CONFIG_OLED_SH1106_128X64=y",
+        "CONFIG_SPIRAM=y",
+        "CONFIG_SPIRAM_MODE_OCT=y"
+      ]
+    }
+  ]
+}
